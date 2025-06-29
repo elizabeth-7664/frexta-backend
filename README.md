@@ -1,221 +1,237 @@
-# ClientConnect API
+# ClientConnect App – Fullstack Deployment Guide
 
-**ClientConnect** is an async FastAPI backend designed to manage clients, projects, payments, notes, and dashboard analytics. It uses JWT-based authentication, PostgreSQL for data persistence, and Alembic for migrations.
+ClientConnect is a full-featured CRM-style web application where users can manage their clients, assign projects, track payments, write notes, and view key business metrics in a centralized dashboard. It’s built with a modern tech stack using FastAPI and React, and is fully containerized for smooth deployment to Render.
 
+![image](https://github.com/user-attachments/assets/141c90cd-ff20-44d6-b7ac-7b71325f8174)
 ![image](https://github.com/user-attachments/assets/9f8ae494-ac9d-4f25-9126-5c9fc03a3a3d)
-![image](https://github.com/user-attachments/assets/ef7c96bc-92a3-4118-a4e1-2e606300f754)
 
+## ✅ App Features Summary
 
-## 🚀 Features
+* ✅ JWT-based authentication system
+* ✅ CRUD operations for users, clients, projects, payments, and notes
+* ✅ Dashboard with summaries
+* ✅ Fully responsive React UI
+* ✅ Dockerized backend
+* ✅ Deployed on Render with static frontend serving
 
-* ✅ JWT authentication (register/login/reset password)
-* ✅ PostgreSQL with SQLAlchemy ORM (async)
-* ✅ Dashboard analytics (KPIs and activity feed)
-* ✅ Modular route structure (clients, projects, payments, notes)
-* ✅ Pydantic v2 schemas and validation
-* ✅ CORS support for frontend integration (React)
-* ✅ Fully async, scalable, and production-ready
+---
+
+## 🎯 Minimum Viable Product (MVP)
+
+* User registration and login with JWT tokens
+* Users can manage clients and assign projects
+* Add and track payments related to projects
+* Notes feature for client/project communication
+* Admin dashboard with key statistics and data insights
+
+---
 
 ## 🧰 Tech Stack
 
-| Category   | Tech Stack                          |
-| ---------- | ----------------------------------- |
-| Backend    | FastAPI                             |
-| Database   | PostgreSQL 16.9                     |
-| ORM        | SQLAlchemy (async)                  |
-| Migrations | Alembic                             |
-| Auth       | JWT (python-jose), bcrypt (passlib) |
-| Validation | Pydantic Settings                   |
-| Server     | Uvicorn                             |
+### Backend
+
+* FastAPI (Python 3.11)
+* PostgreSQL (via SQLAlchemy/asyncpg)
+* Alembic (migrations)
+* Docker
+
+### Frontend
+
+* React
+* Vite
+* Axios
+* Tailwind CSS (optional)
+
+### DevOps / Deployment
+
+* Docker
+* Render.com
+* GitHub (for CI/CD)
 
 ---
 
-## 🖥️ Prerequisites
+## 🏗 Project Structure
 
-* Python 3.10+
-* PostgreSQL 16.9
-* pip + virtualenv
-* Git
+```
+clientconnect/
+├── frexta-backend/
+│   ├── app/
+│   │   └── ... FastAPI backend files
+│   ├── static/             # <-- Vite build output goes here
+│   ├── Dockerfile
+│   └── requirements.txt
+├── front/
+│   ├── public/
+│   ├── src/
+│   ├── .env.production     # <-- API URL config for deployment
+│   └── vite.config.js
+└── README.md (this file)
+```
 
 ---
 
-## 🛠️ Setup Instructions
+## ⚙️ Backend Setup – FastAPI (frexta-backend)
 
-### 1. Clone the repository
-
-```bash
-git clone https://github.com/your-username/clientconnect-backend.git
-cd clientconnect-backend
-```
-
-### 2. Create and activate a virtual environment
+### 1. Install dependencies
 
 ```bash
-python -m venv .venv
-source .venv/bin/activate  # or .venv\Scripts\activate on Windows
-```
-
-### 3. Install dependencies
-
-```bash
+cd frexta-backend
 pip install -r requirements.txt
 ```
 
-### 4. Configure PostgreSQL
+### 2. Set up the database
 
-Ensure PostgreSQL is running on port `5433`. Update these files if needed:
+Ensure `DATABASE_URL` and other environment variables are set in `.env` or via Render dashboard.
 
-* `/etc/postgresql/16/main/postgresql.conf`:
-
-  ```
-  port = 5433
-  listen_addresses = 'localhost'
-  ```
-* `/etc/postgresql/16/main/pg_hba.conf`:
-
-  ```
-  host    all             all             127.0.0.1/32            md5
-  ```
-
-Then restart:
+### 3. Run locally
 
 ```bash
-sudo systemctl restart postgresql
+uvicorn app.main:app --reload
 ```
 
-### 5. Create database and user
+### 4. Static frontend mounting in `app/main.py`
 
-```bash
-sudo -u postgres psql -p 5433
-```
+```python
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 
-Inside the psql shell:
+app.mount("/static", StaticFiles(directory="static"), name="static")
 
-```sql
-CREATE DATABASE frexta_db;
-CREATE USER myuser WITH PASSWORD 'securepassword123';
-ALTER DATABASE frexta_db OWNER TO myuser;
-GRANT ALL PRIVILEGES ON DATABASE frexta_db TO myuser;
+@app.get("/", include_in_schema=False)
+async def serve_frontend():
+    return FileResponse("static/index.html")
 ```
 
 ---
 
-### 6. Configure environment variables
+## 💻 Frontend Setup – React + Vite (front)
 
-Create a `.env` file in the root:
+### 1. Install and configure
+
+```bash
+cd front
+npm install
+```
+
+### 2. API environment variable
+
+Create `.env.production` in `front/`:
 
 ```env
-DATABASE_URL=postgresql+asyncpg://myuser:securepassword123@localhost:5433/frexta_db
-SECRET_KEY=your-secret-key
-ALGORITHM=HS256
-ACCESS_TOKEN_EXPIRE_MINUTES=30
+VITE_API_URL=https://frexta-backend.onrender.com/api
 ```
 
----
+### 3. Use API URL in Axios
 
-### 7. Run migrations
+Example:
 
-If you haven't already:
+```js
+axios.post(`${import.meta.env.VITE_API_URL}/register`, data)
+```
+
+### 4. Build frontend for production
 
 ```bash
-alembic revision --autogenerate -m "Initial migration"
-alembic upgrade head
+npm run build
 ```
 
----
-
-### 8. Start the development server
+### 5. Copy frontend build to backend static folder
 
 ```bash
-uvicorn app.main:app --reload --port 8000
+cp -r front/dist/* frexta-backend/static/
 ```
 
 ---
 
-## 🔀 API Endpoints
+## 🐳 Dockerfile (in frexta-backend)
 
-### Auth Routes (`/api`)
+```Dockerfile
+FROM python:3.11-slim
 
-* `POST /api/register`
-* `POST /api/login`
-* `POST /api/forgot-password`
-* `POST /api/reset-password`
+WORKDIR /app
 
-### Core Resources
+RUN apt-get update && apt-get install -y gcc && rm -rf /var/lib/apt/lists/*
 
-* `GET /api/clients`
-* `GET /api/projects`
-* `GET /api/payments`
-* `GET /api/notes`
-* `GET /api/users`
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
 
-### Dashboard
+COPY . .
 
-* `GET /api/dashboard/kpis`
-* `GET /api/dashboard/activities`
+ENV PORT=8000
+EXPOSE 8000
+
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+```
+
+> ⚠️ Note: Avoid using `$PORT` in CMD. Render will still map external ports correctly.
 
 ---
 
-## 🗂️ Project Structure
+## 🚀 Deployment on Render
+
+### 1. Create a new Web Service
+
+* Environment: **Docker**
+* Region: closest to users
+* Root directory: `frexta-backend/`
+* Environment Variables:
+
+  * `DATABASE_URL=...`
+  * `SECRET_KEY=...`
+  * `ALGORITHM=HS256`
+  * `ACCESS_TOKEN_EXPIRE_MINUTES=30`
+
+### 2. GitHub deployment
+
+Push your project to GitHub.
+Render will automatically build and deploy your backend.
+
+Your live URL will be:
 
 ```
-frexta-backend/
-├── app/
-│   ├── api/
-│   │   ├── authy.py
-│   │   ├── users.py
-│   │   ├── clients.py
-│   │   ├── projects.py
-│   │   ├── payments.py
-│   │   ├── notes.py
-│   │   └── dashboard.py
-│   ├── core/
-│   │   ├── config.py
-│   │   ├── database.py
-│   │   └── security.py
-│   ├── models/
-│   ├── schemas/
-│   ├── main.py
-├── migrations/
-├── .env
-├── alembic.ini
-├── requirements.txt
+https://frexta-backend.onrender.com
 ```
+
+This URL also serves your static frontend files.
 
 ---
 
-## 🐛 Troubleshooting
+## 🧪 Local Testing
 
-### `ModuleNotFoundError`
+### Frontend:
 
 ```bash
-pip install -r requirements.txt
+cd front
+npm run dev
 ```
 
-### Alembic errors
+### Backend:
 
 ```bash
-alembic -x loglevel=DEBUG revision --autogenerate -m "fix migration"
+cd frexta-backend
+uvicorn app.main:app --reload
 ```
 
-### PostgreSQL issues
-
-```bash
-sudo tail -f /var/log/postgresql/postgresql-16-main.log
-```
+Ensure the frontend `.env` file points to `http://127.0.0.1:8000/api` for local development.
 
 ---
 
-## 👥 Contributing
+## 🐞 Troubleshooting
 
-1. Fork the project
-2. Create a new branch: `git checkout -b feature/xyz`
-3. Commit changes: `git commit -m "feat: add xyz"`
-4. Push to GitHub: `git push origin feature/xyz`
-5. Create a pull request
+* **Network Error / 127.0.0.1 API requests in production:**
+
+  * Solution: Set `VITE_API_URL` to correct deployed URL in `.env.production`.
+
+* **`static/index.html` not found:**
+
+  * Solution: Run Vite build and copy `dist/` contents to `static/` folder inside `frexta-backend/`.
+
+* **Docker/uvicorn `$PORT` error:**
+
+  * Solution: Use a hardcoded port like `8000` instead of `$PORT` in `Dockerfile` CMD.
 
 ---
 
-## 📄 License
+## 📝 License
 
-MIT License
+This project is licensed under the MIT License.
